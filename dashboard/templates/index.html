@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>AI Digital Twin — Self-Healing Network Dashboard</title>
+  <meta name="description" content="Real-time AI-integrated Digital Twin dashboard for autonomous self-healing network management with resource optimization."/>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- D3.js for topology -->
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+
+  <link rel="stylesheet" href="/static/style.css"/>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     HEADER
+══════════════════════════════════════════════════════════════════════════ -->
+<header class="header">
+  <div class="header-brand">
+    <div class="brand-icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="#00f5c4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div>
+      <h1 class="brand-title">AI Digital Twin</h1>
+      <p class="brand-sub">Self-Healing Network — Resource Optimization</p>
+    </div>
+  </div>
+  <div class="header-status">
+    <div class="status-pill" id="status-pill">
+      <span class="status-dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+    <div class="model-badge" id="model-badge">AI Model: Loading…</div>
+    <div class="tick-counter">Tick: <span id="tick-val">0</span></div>
+  </div>
+</header>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     KPI CARDS
+══════════════════════════════════════════════════════════════════════════ -->
+<section class="kpi-grid">
+  <div class="kpi-card" id="kpi-availability">
+    <div class="kpi-icon">🛡️</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-availability">–</div>
+      <div class="kpi-label">Network Availability</div>
+    </div>
+    <div class="kpi-trend" id="kt-availability"></div>
+  </div>
+  <div class="kpi-card" id="kpi-latency">
+    <div class="kpi-icon">⚡</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-latency">–</div>
+      <div class="kpi-label">Avg Latency (ms)</div>
+    </div>
+    <div class="kpi-trend" id="kt-latency"></div>
+  </div>
+  <div class="kpi-card" id="kpi-throughput">
+    <div class="kpi-icon">📡</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-throughput">–</div>
+      <div class="kpi-label">Total Throughput (Mbps)</div>
+    </div>
+    <div class="kpi-trend" id="kt-throughput"></div>
+  </div>
+  <div class="kpi-card" id="kpi-cpu">
+    <div class="kpi-icon">🖥️</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-cpu">–</div>
+      <div class="kpi-label">Avg CPU Usage</div>
+    </div>
+    <div class="kpi-trend" id="kt-cpu"></div>
+  </div>
+  <div class="kpi-card" id="kpi-faults">
+    <div class="kpi-icon">🔴</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-faults">0</div>
+      <div class="kpi-label">Faults Detected</div>
+    </div>
+    <div class="kpi-trend" id="kt-faults"></div>
+  </div>
+  <div class="kpi-card" id="kpi-healed">
+    <div class="kpi-icon">✅</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-healed">0</div>
+      <div class="kpi-label">Auto-Healed</div>
+    </div>
+    <div class="kpi-trend" id="kt-healed"></div>
+  </div>
+  <div class="kpi-card" id="kpi-energy">
+    <div class="kpi-icon">⚡</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-energy">–</div>
+      <div class="kpi-label">Energy Consumption (W)</div>
+    </div>
+    <div class="kpi-trend" id="kt-energy"></div>
+  </div>
+  <div class="kpi-card" id="kpi-pktloss">
+    <div class="kpi-icon">📉</div>
+    <div class="kpi-body">
+      <div class="kpi-value" id="kv-pktloss">–</div>
+      <div class="kpi-label">Avg Packet Loss (%)</div>
+    </div>
+    <div class="kpi-trend" id="kt-pktloss"></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     MAIN GRID
+══════════════════════════════════════════════════════════════════════════ -->
+<main class="main-grid">
+
+  <!-- Network Topology -->
+  <section class="panel panel-topology" id="panel-topology">
+    <div class="panel-header">
+      <h2 class="panel-title">Network Topology</h2>
+      <div class="legend">
+        <span class="legend-item"><span class="legend-dot dot-core"></span>Core</span>
+        <span class="legend-item"><span class="legend-dot dot-edge"></span>Edge</span>
+        <span class="legend-item"><span class="legend-dot dot-access"></span>Access</span>
+        <span class="legend-item"><span class="legend-dot dot-down"></span>Down</span>
+      </div>
+    </div>
+    <div id="topology-svg-container"></div>
+  </section>
+
+  <!-- Live Metrics Charts -->
+  <section class="panel panel-charts">
+    <div class="panel-header">
+      <h2 class="panel-title">Live Network Metrics</h2>
+      <div class="tab-bar">
+        <button class="tab-btn active" data-tab="latency-chart" id="tab-latency">Latency</button>
+        <button class="tab-btn" data-tab="throughput-chart" id="tab-throughput">Throughput</button>
+        <button class="tab-btn" data-tab="cpu-chart" id="tab-cpu">CPU</button>
+        <button class="tab-btn" data-tab="pktloss-chart" id="tab-pktloss">Packet Loss</button>
+      </div>
+    </div>
+    <div class="charts-container">
+      <div class="chart-tab active" id="latency-chart"><canvas id="chart-latency"></canvas></div>
+      <div class="chart-tab" id="throughput-chart"><canvas id="chart-throughput"></canvas></div>
+      <div class="chart-tab" id="cpu-chart"><canvas id="chart-cpu"></canvas></div>
+      <div class="chart-tab" id="pktloss-chart"><canvas id="chart-pktloss"></canvas></div>
+    </div>
+  </section>
+
+  <!-- Node Status Table -->
+  <section class="panel panel-nodes">
+    <div class="panel-header">
+      <h2 class="panel-title">Node Status &amp; AI Predictions</h2>
+    </div>
+    <div class="table-wrapper">
+      <table class="node-table" id="node-table">
+        <thead>
+          <tr>
+            <th>Node</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>CPU %</th>
+            <th>Mem %</th>
+            <th>Throughput</th>
+            <th>Pkt Loss</th>
+            <th>AI Class</th>
+            <th>Confidence</th>
+          </tr>
+        </thead>
+        <tbody id="node-table-body">
+          <tr><td colspan="9" class="empty-row">Waiting for data…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Fault Log -->
+  <section class="panel panel-faults">
+    <div class="panel-header">
+      <h2 class="panel-title">Fault Detection Log</h2>
+      <span class="badge" id="fault-count-badge">0</span>
+    </div>
+    <div class="event-feed" id="fault-feed">
+      <div class="feed-empty">No faults detected yet. Network is healthy 🟢</div>
+    </div>
+  </section>
+
+  <!-- Healing Log -->
+  <section class="panel panel-healing">
+    <div class="panel-header">
+      <h2 class="panel-title">Self-Healing Actions</h2>
+      <span class="badge badge-green" id="heal-count-badge">0</span>
+    </div>
+    <div class="event-feed" id="heal-feed">
+      <div class="feed-empty">No healing actions yet.</div>
+    </div>
+  </section>
+
+  <!-- Resource Utilization Heatmap -->
+  <section class="panel panel-heatmap">
+    <div class="panel-header">
+      <h2 class="panel-title">Resource Utilization Heatmap</h2>
+    </div>
+    <div id="heatmap-container" class="heatmap-grid"></div>
+  </section>
+
+</main>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     NOTIFICATION TOAST
+══════════════════════════════════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<script src="/static/main.js"></script>
+</body>
+</html>
